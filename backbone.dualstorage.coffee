@@ -6,26 +6,65 @@
 
 # Make it easy for collections to sync dirty and destroyed records
 # Simply call collection.syncDirtyAndDestroyed()
-Backbone.Collection.prototype.syncDirty = ->
-  store = localStorage.getItem "#{@url}_dirty"
+Backbone.Collection.prototype.syncDirty = (cb)->
+  cb ?= ()->
+  storeName = @storeName or @url
+  store = localStorage.getItem "#{storeName}_dirty"
   ids = (store and store.split(',')) or []
   
+  doneCount = 0
+  errored = []
+  synced = []
+  complete = ->
+    cb(errored, synced) if doneCount == ids.length
+  return complete() if ids.length == 0
+  error = (model)->
+    doneCount++
+    errored.push(model)
+    complete()
+  success = (model)->
+    doneCount++
+    if model.dirty then errored.push(model) else synced.push(model)
+    complete()
   for id in ids
     model = if id.length == 36 then @where(id: id)[0] else @get(parseInt(id))
-    model.save()
+    if !model
+      error(id)
+      continue
+    model.save({}, { success: success, error: error })
 
-Backbone.Collection.prototype.syncDestroyed = ->
-  store = localStorage.getItem "#{@url}_destroyed"
+Backbone.Collection.prototype.syncDestroyed = (cb)->
+  cb ?= ()->
+  storeName = @storeName or @url
+  store = localStorage.getItem "#{storeName}_destroyed"
   ids = (store and store.split(',')) or []
   
+  doneCount = 0
+  errored = []
+  synced = []
+  complete = ->
+    cb(errored, synced) if doneCount == ids.length
+  return complete() if ids.length == 0
+  error = (model)->
+    doneCount++
+    errored.push(model)
+    complete()
+  success = (model)->
+    doneCount++
+    synced.push(model)
+    complete()
   for id in ids
     model = new @model({id: id})
     model.collection = @
-    model.destroy()
+    model.destroy({ success: success, error: error })
 
-Backbone.Collection.prototype.syncDirtyAndDestroyed = ->
-  @syncDirty()
-  @syncDestroyed()
+Backbone.Collection.prototype.syncDirtyAndDestroyed = (cb)->
+  cb ?= ()->
+  @syncDirty (errored, synced)=>
+    @syncDestroyed (errored2, synced2)=>
+      errored.push.apply(errored, errored2)
+      synced.push.apply(synced, synced2)
+      cb(errored, synced)
 
 # Generate four random hex digits.
 S4 = ->
@@ -60,6 +99,7 @@ class window.Store
       console.log 'dirtying', model
       dirtyRecords.push model.id
       localStorage.setItem @name + '_dirty', dirtyRecords.join(',')
+    model.dirty = true
     model
   
   clean: (model, from) ->
@@ -68,6 +108,7 @@ class window.Store
     if _.include dirtyRecords, model.id.toString()
       console.log 'cleaning', model.id
       localStorage.setItem store, _.without(dirtyRecords, model.id.toString()).join(',')
+    model.dirty = false
     model
     
   destroyed: (model) ->
@@ -79,7 +120,7 @@ class window.Store
     
   # Add a model, giving it a (hopefully)-unique GUID, if it doesn't already
   # have an id of it's own.
-  create: (model) ->
+  create: (model, storeInCollection = true) ->
     console.log 'creating', model, 'in', @name
     if not _.isObject(model) then return model
     #if model.attributes? then model = model.attributes #removed to fix issue 14
@@ -87,8 +128,10 @@ class window.Store
       model.id = @generateId()
       model.set model.idAttribute, model.id
     localStorage.setItem @name + @sep + model.id, JSON.stringify(model)
-    @records.push model.id.toString()
-    @save()
+    if storeInCollection
+      console.log "storing model #{model.id} in collection #{@name}" 
+      @records.push model.id.toString()
+      @save()
     model
 
   # Update a model by replacing its copy in `this.data`.
@@ -143,7 +186,8 @@ localsync = (method, model, options) ->
     when 'clear'
       store.clear()
     when 'create'
-      model = store.create(model)
+      skipCollection = options.skipCollection || false
+      model = store.create(model, !skipCollection)
       store.dirty(model) if options.dirty
     when 'update'
       store.update(model)
@@ -189,12 +233,15 @@ dualsync = (method, model, options) ->
                       result(model.collection, 'url') || result(model, 'url')
   
   # execute only online sync
-  return onlineSync(method, model, options) if result(model, 'remote') or result(model.collection, 'remote')
+  if result(model, 'remote') or result(model.collection, 'remote') or options.local is false
+    console.log "only doing online sync"
+    return onlineSync(method, model, options)
   
   # execute only local sync
   local = result(model, 'local') or result(model.collection, 'local')
   options.dirty = options.remote is false and not local
-  return localsync(method, model, options) if options.remote is false or local
+  if options.remote is false or local
+    return localsync(method, model, options)
   
   # execute dual sync
   options.ignoreCallbacks = true
@@ -205,18 +252,23 @@ dualsync = (method, model, options) ->
   switch method
     when 'read'
       if localsync('hasDirtyOrDestroyed', model, options)
+        model.trigger 'fetchRequested', model
         console.log "can't clear", options.storeName, "require sync dirty data first"
-        success localsync(method, model, options)
+        success localsync(method, model, options), "success"
       else
         options.success = (resp, status, xhr) ->
           console.log 'got remote', resp, 'putting into', options.storeName
           resp = parseRemoteResponse(model, resp)
           
-          localsync('clear', model, options)
+          localsync('clear', model, options) unless options.skipCollection
           
           if _.isArray resp
             for i in resp
               console.log 'trying to store', i
+              if model.model
+                i = new model.model i
+              else if model instanceof Backbone.Model
+                i = new model i
               localsync('create', i, options)
           else
             localsync('create', resp, options)
@@ -225,7 +277,7 @@ dualsync = (method, model, options) ->
         
         options.error = (resp) ->
           console.log 'getting local from', options.storeName
-          success localsync(method, model, options)
+          success localsync(method, model, options), "success"
 
         onlineSync(method, model, options)
 
@@ -255,7 +307,7 @@ dualsync = (method, model, options) ->
         onlineSync('create', model, options)
       else
         options.success = (resp, status, xhr) ->
-          success localsync(method, model, options)
+          success localsync(method, model, options), 'success'
         options.error = (resp) ->
           options.dirty = true
           success localsync(method, model, options)
