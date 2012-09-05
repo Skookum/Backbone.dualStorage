@@ -5,98 +5,107 @@
   var S4, dualsync, localsync, onlineSync, parseRemoteResponse, result;
 
   Backbone.Collection.prototype.syncDirty = function(cb) {
-    var complete, doneCount, error, errored, id, ids, model, store, storeName, success, synced, _i, _len, _results;
+    var error, errored, ids, next, queue, store, storeName, success, sync, synced, total,
+      _this = this;
     if (cb == null) {
       cb = function() {};
     }
     storeName = this.storeName || this.url;
     store = localStorage.getItem("" + storeName + "_dirty");
     ids = (store && store.split(',')) || [];
-    doneCount = 0;
+    total = ids.length;
     errored = [];
     synced = [];
-    complete = function() {
-      if (doneCount === ids.length) {
+    queue = [];
+    next = function() {
+      if (ids.length === 0) {
         return cb(errored, synced);
       }
+      return sync(ids.shift());
     };
-    if (ids.length === 0) {
-      return complete();
-    }
     error = function(model) {
-      doneCount++;
       errored.push(model);
-      return complete();
+      return next();
     };
     success = function(model) {
-      doneCount++;
       if (model.dirty) {
         errored.push(model);
       } else {
         synced.push(model);
       }
-      return complete();
+      return next();
     };
-    _results = [];
-    for (_i = 0, _len = ids.length; _i < _len; _i++) {
-      id = ids[_i];
-      model = id.length === 36 ? this.where({
+    sync = function(id) {
+      var model;
+      model = id.length === 36 ? _this.where({
         id: id
-      })[0] : this.get(parseInt(id));
+      })[0] : _this.get(parseInt(id));
+      _this.trigger('sync:status', {
+        current: model,
+        total: total,
+        synced: synced.length,
+        errored: errored.length
+      });
       if (!model) {
-        error(id);
-        continue;
+        return error(id);
       }
-      _results.push(model.save({}, {
+      return model.save({}, {
         success: success,
         error: error
-      }));
-    }
-    return _results;
+      });
+    };
+    return next();
   };
 
   Backbone.Collection.prototype.syncDestroyed = function(cb) {
-    var complete, doneCount, error, errored, id, ids, model, store, storeName, success, synced, _i, _len, _results;
+    var error, errored, ids, next, queue, store, storeName, success, sync, synced, total,
+      _this = this;
     if (cb == null) {
       cb = function() {};
     }
     storeName = this.storeName || this.url;
     store = localStorage.getItem("" + storeName + "_destroyed");
     ids = (store && store.split(',')) || [];
-    doneCount = 0;
+    total = ids.length;
     errored = [];
     synced = [];
-    complete = function() {
-      if (doneCount === ids.length) {
+    queue = [];
+    next = function() {
+      if (ids.length === 0) {
         return cb(errored, synced);
       }
+      return sync(ids.shift());
     };
-    if (ids.length === 0) {
-      return complete();
-    }
     error = function(model) {
-      doneCount++;
       errored.push(model);
-      return complete();
+      return next();
     };
     success = function(model) {
-      doneCount++;
-      synced.push(model);
-      return complete();
+      if (model.dirty) {
+        errored.push(model);
+      } else {
+        synced.push(model);
+      }
+      return next();
     };
-    _results = [];
-    for (_i = 0, _len = ids.length; _i < _len; _i++) {
-      id = ids[_i];
-      model = new this.model({
+    sync = function(id) {
+      var model;
+      model = new _this.model({
         id: id
       });
-      model.collection = this;
-      _results.push(model.destroy({
+      _this.trigger('sync:status', {
+        current: model,
+        total: total,
+        synced: synced.length,
+        errored: errored.length
+      });
+      model.collection = _this;
+      return model.destroy({
         success: success,
         error: error
-      }));
-    }
-    return _results;
+      });
+    };
+    return next();
   };
 
   Backbone.Collection.prototype.syncDirtyAndDestroyed = function(cb) {
@@ -111,6 +120,16 @@
         return cb(errored, synced);
       });
     });
+  };
+
+  Backbone.Collection.prototype.dirtyCount = function() {
+    var destroyed_ids, dirty_ids, store, storeName;
+    storeName = this.storeName || this.url;
+    store = localStorage.getItem("" + storeName + "_dirty");
+    dirty_ids = (store && store.split(',')) || [];
+    store = localStorage.getItem("" + storeName + "_destroyed");
+    destroyed_ids = (store && store.split(',')) || [];
+    return _.union(dirty_ids, destroyed_ids).length;
   };
 
   S4 = function() {

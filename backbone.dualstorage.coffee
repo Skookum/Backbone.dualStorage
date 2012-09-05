@@ -11,27 +11,26 @@ Backbone.Collection.prototype.syncDirty = (cb)->
   storeName = @storeName or @url
   store = localStorage.getItem "#{storeName}_dirty"
   ids = (store and store.split(',')) or []
-  
-  doneCount = 0
+  total = ids.length
   errored = []
   synced = []
-  complete = ->
-    cb(errored, synced) if doneCount == ids.length
-  return complete() if ids.length == 0
+  queue = []
+  next = ->
+    return cb(errored, synced) if ids.length == 0
+    sync ids.shift()
   error = (model)->
-    doneCount++
     errored.push(model)
-    complete()
+    next()
   success = (model)->
-    doneCount++
+    # if model is still dirty, sync was not successful
     if model.dirty then errored.push(model) else synced.push(model)
-    complete()
-  for id in ids
+    next()
+  sync = (id)=>
     model = if id.length == 36 then @where(id: id)[0] else @get(parseInt(id))
-    if !model
-      error(id)
-      continue
+    @trigger 'sync:status', current: model, total: total, synced: synced.length, errored: errored.length
+    return error(id) if !model
     model.save({}, { success: success, error: error })
+  next()
 
 Backbone.Collection.prototype.syncDestroyed = (cb)->
   cb ?= ()->
@@ -39,24 +38,26 @@ Backbone.Collection.prototype.syncDestroyed = (cb)->
   store = localStorage.getItem "#{storeName}_destroyed"
   ids = (store and store.split(',')) or []
   
-  doneCount = 0
+  total = ids.length
   errored = []
   synced = []
-  complete = ->
-    cb(errored, synced) if doneCount == ids.length
-  return complete() if ids.length == 0
+  queue = []
+  next = ->
+    return cb(errored, synced) if ids.length == 0
+    sync ids.shift()
   error = (model)->
-    doneCount++
     errored.push(model)
-    complete()
+    next()
   success = (model)->
-    doneCount++
-    synced.push(model)
-    complete()
-  for id in ids
+    # if model is still dirty, sync was not successful
+    if model.dirty then errored.push(model) else synced.push(model)
+    next()
+  sync = (id)=>
     model = new @model({id: id})
+    @trigger 'sync:status', current: model, total: total, synced: synced.length, errored: errored.length
     model.collection = @
     model.destroy({ success: success, error: error })
+  next()
 
 Backbone.Collection.prototype.syncDirtyAndDestroyed = (cb)->
   cb ?= ()->
@@ -65,6 +66,14 @@ Backbone.Collection.prototype.syncDirtyAndDestroyed = (cb)->
       errored.push.apply(errored, errored2)
       synced.push.apply(synced, synced2)
       cb(errored, synced)
+
+Backbone.Collection::dirtyCount = ->
+  storeName = @storeName or @url
+  store = localStorage.getItem "#{storeName}_dirty"
+  dirty_ids = (store and store.split(',')) or []
+  store = localStorage.getItem "#{storeName}_destroyed"
+  destroyed_ids = (store and store.split(',')) or []
+  return _.union(dirty_ids, destroyed_ids).length;
 
 # Generate four random hex digits.
 S4 = ->
