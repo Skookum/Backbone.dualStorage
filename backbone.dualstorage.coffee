@@ -263,11 +263,13 @@ dualsync = (method, model, options) ->
       if localsync('hasDirtyOrDestroyed', model, options)
         model.trigger 'fetchRequested', model
         console.log "can't clear", options.storeName, "require sync dirty data first"
-        success localsync(method, model, options), "success"
+        model.fromLocal = true
+        success localsync(method, model, options)
       else
         options.success = (resp, status, xhr) ->
           console.log 'got remote', resp, 'putting into', options.storeName
           resp = parseRemoteResponse(model, resp)
+          model.fromLocal = false
           
           localsync('clear', model, options) unless options.skipCollection
           
@@ -286,7 +288,8 @@ dualsync = (method, model, options) ->
         
         options.error = (resp) ->
           console.log 'getting local from', options.storeName
-          success localsync(method, model, options), "success"
+          model.fromLocal = true
+          success localsync(method, model, options)
 
         onlineSync(method, model, options)
 

@@ -369,12 +369,14 @@
         if (localsync('hasDirtyOrDestroyed', model, options)) {
           model.trigger('fetchRequested', model);
           console.log("can't clear", options.storeName, "require sync dirty data first");
-          return success(localsync(method, model, options), "success");
+          model.fromLocal = true;
+          return success(localsync(method, model, options));
         } else {
           options.success = function(resp, status, xhr) {
             var i, _i, _len;
             console.log('got remote', resp, 'putting into', options.storeName);
             resp = parseRemoteResponse(model, resp);
+            model.fromLocal = false;
             if (!options.skipCollection) {
               localsync('clear', model, options);
             }
@@ -396,7 +398,8 @@
           };
           options.error = function(resp) {
             console.log('getting local from', options.storeName);
-            return success(localsync(method, model, options), "success");
+            model.fromLocal = true;
+            return success(localsync(method, model, options));
           };
           return onlineSync(method, model, options);
         }
