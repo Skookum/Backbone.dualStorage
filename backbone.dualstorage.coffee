@@ -26,7 +26,7 @@ Backbone.Collection.prototype.syncDirty = (cb)->
     if model.dirty then errored.push(model) else synced.push(model)
     next()
   sync = (id)=>
-    model = if id.length == 36 then @where(id: id)[0] else @get(parseInt(id))
+    model = if id.length == 36 then @where(id: id)[0] else @get(id)
     @trigger 'sync:status', current: model, total: total, synced: synced.length, errored: errored.length
     return error(id) if !model
     model.save({}, { success: success, error: error })
@@ -68,12 +68,15 @@ Backbone.Collection.prototype.syncDirtyAndDestroyed = (cb)->
       cb(errored, synced)
 
 Backbone.Collection::dirtyCount = ->
+  @dirtyIds().length
+
+Backbone.Collection::dirtyIds = ->
   storeName = @storeName or @url
   store = localStorage.getItem "#{storeName}_dirty"
   dirty_ids = (store and store.split(',')) or []
   store = localStorage.getItem "#{storeName}_destroyed"
   destroyed_ids = (store and store.split(',')) or []
-  return _.union(dirty_ids, destroyed_ids).length;
+  return _.union(dirty_ids, destroyed_ids)
 
 # Generate four random hex digits.
 S4 = ->
@@ -165,6 +168,11 @@ class window.Store
   find: (model) ->
     console.log 'finding', model, 'in', @name
     JSON.parse localStorage.getItem(@name + @sep + model.id)
+  
+  findIds: (ids) ->
+    console.log 'finding ids', ids, 'in', @name
+    for id in ids
+      JSON.parse localStorage.getItem(@name + @sep + id)
 
   # Return the array of all models currently in storage.
   findAll: ->
@@ -189,7 +197,10 @@ localsync = (method, model, options) ->
 
   response = switch method
     when 'read'
-      if model.id then store.find(model) else store.findAll()
+      if options.onlyIds
+        store.findIds(options.onlyIds)
+      else
+        if model.id then store.find(model) else store.findAll()
     when 'hasDirtyOrDestroyed'
       store.hasDirtyOrDestroyed()
     when 'clear'
@@ -250,6 +261,8 @@ dualsync = (method, model, options) ->
   local = result(model, 'local') or result(model.collection, 'local')
   options.dirty = options.remote is false and not local
   if options.remote is false or local
+    options.ignoreCallbacks = false
+    console.log "only syncing locally"
     return localsync(method, model, options)
   
   # execute dual sync

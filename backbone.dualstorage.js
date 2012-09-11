@@ -39,7 +39,7 @@
       var model;
       model = id.length === 36 ? _this.where({
         id: id
-      })[0] : _this.get(parseInt(id));
+      })[0] : _this.get(id);
       _this.trigger('sync:status', {
         current: model,
         total: total,
@@ -123,13 +123,17 @@
   };
 
   Backbone.Collection.prototype.dirtyCount = function() {
+    return this.dirtyIds().length;
+  };
+
+  Backbone.Collection.prototype.dirtyIds = function() {
     var destroyed_ids, dirty_ids, store, storeName;
     storeName = this.storeName || this.url;
     store = localStorage.getItem("" + storeName + "_dirty");
     dirty_ids = (store && store.split(',')) || [];
     store = localStorage.getItem("" + storeName + "_destroyed");
     destroyed_ids = (store && store.split(',')) || [];
-    return _.union(dirty_ids, destroyed_ids).length;
+    return _.union(dirty_ids, destroyed_ids);
   };
 
   S4 = function() {
@@ -244,6 +248,17 @@
       return JSON.parse(localStorage.getItem(this.name + this.sep + model.id));
     };
 
+    Store.prototype.findIds = function(ids) {
+      var id, _i, _len, _results;
+      console.log('finding ids', ids, 'in', this.name);
+      _results = [];
+      for (_i = 0, _len = ids.length; _i < _len; _i++) {
+        id = ids[_i];
+        _results.push(JSON.parse(localStorage.getItem(this.name + this.sep + id)));
+      }
+      return _results;
+    };
+
     Store.prototype.findAll = function() {
       var id, _i, _len, _ref, _results;
       console.log('findAlling');
@@ -276,10 +291,14 @@
     response = (function() {
       switch (method) {
         case 'read':
-          if (model.id) {
-            return store.find(model);
+          if (options.onlyIds) {
+            return store.findIds(options.onlyIds);
           } else {
-            return store.findAll();
+            if (model.id) {
+              return store.find(model);
+            } else {
+              return store.findAll();
+            }
           }
           break;
         case 'hasDirtyOrDestroyed':
@@ -359,6 +378,8 @@
     local = result(model, 'local') || result(model.collection, 'local');
     options.dirty = options.remote === false && !local;
     if (options.remote === false || local) {
+      options.ignoreCallbacks = false;
+      console.log("only syncing locally");
       return localsync(method, model, options);
     }
     options.ignoreCallbacks = true;
