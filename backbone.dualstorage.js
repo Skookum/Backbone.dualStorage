@@ -37,7 +37,7 @@
     };
     sync = function(id) {
       var model;
-      model = id.length === 36 ? _this.where({
+      model = id.length === 44 ? _this.where({
         id: id
       })[0] : _this.get(id);
       _this.trigger('sync:status', {
@@ -150,7 +150,7 @@
     }
 
     Store.prototype.generateId = function() {
-      return S4() + S4() + '-' + S4() + '-' + S4() + '-' + S4() + '-' + S4() + S4() + S4();
+      return S4() + S4() + '-' + S4() + '-' + S4() + '-' + S4() + '-' + S4() + S4() + S4() + S4() + S4();
     };
 
     Store.prototype.save = function() {
@@ -325,7 +325,7 @@
           if (options.dirty) {
             return store.destroyed(model);
           } else {
-            if (model.id.toString().length === 36) {
+            if (model.id.toString().length === 44) {
               return store.clean(model, 'dirty');
             } else {
               return store.clean(model, 'destroyed');
@@ -436,7 +436,7 @@
         };
         return onlineSync(method, model, options);
       case 'update':
-        if (_.isString(model.id) && model.id.length === 36) {
+        if (_.isString(model.id) && model.id.length === 44) {
           originalModel = model.clone();
           options.success = function(resp, status, xhr) {
             localsync('delete', originalModel, options);
@@ -463,7 +463,7 @@
         }
         break;
       case 'delete':
-        if (_.isString(model.id) && model.id.length === 36) {
+        if (_.isString(model.id) && model.id.length === 44) {
           return localsync(method, model, options);
         } else {
           options.success = function(resp, status, xhr) {

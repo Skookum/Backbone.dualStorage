@@ -26,7 +26,7 @@ Backbone.Collection.prototype.syncDirty = (cb)->
     if model.dirty then errored.push(model) else synced.push(model)
     next()
   sync = (id)=>
-    model = if id.length == 36 then @where(id: id)[0] else @get(id)
+    model = if id.length == 44 then @where(id: id)[0] else @get(id)
     @trigger 'sync:status', current: model, total: total, synced: synced.length, errored: errored.length
     return error(id) if !model
     model.save({}, { success: success, error: error })
@@ -95,7 +95,7 @@ class window.Store
   # by default generates a pseudo-GUID by concatenating random hexadecimal.
   # you can overwrite this function to use another strategy
   generateId: ->
-    S4() + S4() + '-' + S4() + '-' + S4() + '-' + S4() + '-' + S4() + S4() + S4()
+    S4() + S4() + '-' + S4() + '-' + S4() + '-' + S4() + '-' + S4() + S4() + S4() + S4() + S4()
   
   # Save the current state of the **Store** to *localStorage*.
   save: ->
@@ -217,7 +217,7 @@ localsync = (method, model, options) ->
       if options.dirty
         store.destroyed(model)
       else
-        if model.id.toString().length == 36 
+        if model.id.toString().length == 44 
           store.clean(model, 'dirty')
         else
           store.clean(model, 'destroyed')
@@ -317,7 +317,7 @@ dualsync = (method, model, options) ->
       onlineSync(method, model, options)
 
     when 'update'
-      if _.isString(model.id) and model.id.length == 36
+      if _.isString(model.id) and model.id.length == 44
         originalModel = model.clone()
         
         options.success = (resp, status, xhr) ->
@@ -340,7 +340,7 @@ dualsync = (method, model, options) ->
         onlineSync(method, model, options)
 
     when 'delete'
-      if _.isString(model.id) and model.id.length == 36
+      if _.isString(model.id) and model.id.length == 44
         localsync(method, model, options)
       else
         options.success = (resp, status, xhr) ->
