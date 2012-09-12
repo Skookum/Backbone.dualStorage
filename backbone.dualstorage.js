@@ -147,6 +147,7 @@
     function Store(name) {
       this.name = name;
       this.records = this.recordsOn(this.name);
+      this.recordsNoCollection = this.recordsOn(this.name + '_nocollection');
     }
 
     Store.prototype.generateId = function() {
@@ -154,7 +155,8 @@
     };
 
     Store.prototype.save = function() {
-      return localStorage.setItem(this.name, this.records.join(','));
+      localStorage.setItem(this.name, this.records.join(','));
+      return localStorage.setItem(this.name + '_nocollection', _.uniq(this.recordsNoCollection).join(','));
     };
 
     Store.prototype.recordsOn = function(key) {
@@ -213,8 +215,10 @@
       if (storeInCollection) {
         console.log("storing model " + model.id + " in collection " + this.name);
         this.records.push(model.id.toString());
-        this.save();
+      } else {
+        this.recordsNoCollection.push(model.id.toString());
       }
+      this.save();
       return model;
     };
 
@@ -236,6 +240,17 @@
         localStorage.removeItem(this.name + this.sep + id);
       }
       this.records = [];
+      return this.save();
+    };
+
+    Store.prototype.clearNoCollection = function() {
+      var id, _i, _len, _ref;
+      _ref = this.recordsNoCollection;
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        id = _ref[_i];
+        localStorage.removeItem(this.name + this.sep + id);
+      }
+      this.recordsNoCollection = [];
       return this.save();
     };
 
@@ -305,6 +320,8 @@
           return store.hasDirtyOrDestroyed();
         case 'clear':
           return store.clear();
+        case 'clearNoCollection':
+          return store.clearNoCollection();
         case 'create':
           skipCollection = options.skipCollection || false;
           model = store.create(model, !skipCollection);
@@ -401,6 +418,7 @@
             if (!options.skipCollection) {
               localsync('clear', model, options);
             }
+            localsync('clearNoCollection', model, options);
             if (_.isArray(resp)) {
               for (_i = 0, _len = resp.length; _i < _len; _i++) {
                 i = resp[_i];

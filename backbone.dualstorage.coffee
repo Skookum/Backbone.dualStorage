@@ -90,6 +90,7 @@ class window.Store
   constructor: (name) ->
     @name = name
     @records = @recordsOn @name
+    @recordsNoCollection = @recordsOn @name + '_nocollection'
 
   # Generates an unique id to use when saving new instances into localstorage
   # by default generates a pseudo-GUID by concatenating random hexadecimal.
@@ -100,6 +101,7 @@ class window.Store
   # Save the current state of the **Store** to *localStorage*.
   save: ->
     localStorage.setItem @name, @records.join(',')
+    localStorage.setItem @name + '_nocollection', _.uniq(@recordsNoCollection).join(',')
   
   recordsOn: (key) ->
     store = localStorage.getItem(key)
@@ -143,7 +145,9 @@ class window.Store
     if storeInCollection
       console.log "storing model #{model.id} in collection #{@name}" 
       @records.push model.id.toString()
-      @save()
+    else
+      @recordsNoCollection.push model.id.toString()
+    @save()
     model
 
   # Update a model by replacing its copy in `this.data`.
@@ -159,6 +163,12 @@ class window.Store
     for id in @records
       localStorage.removeItem @name + @sep + id
     @records = []
+    @save()
+  
+  clearNoCollection: ->
+    for id in @recordsNoCollection
+      localStorage.removeItem @name + @sep + id
+    @recordsNoCollection = []
     @save()
   
   hasDirtyOrDestroyed: ->
@@ -205,6 +215,8 @@ localsync = (method, model, options) ->
       store.hasDirtyOrDestroyed()
     when 'clear'
       store.clear()
+    when 'clearNoCollection'
+      store.clearNoCollection()
     when 'create'
       skipCollection = options.skipCollection || false
       model = store.create(model, !skipCollection)
@@ -285,6 +297,7 @@ dualsync = (method, model, options) ->
           model.fromLocal = false
           
           localsync('clear', model, options) unless options.skipCollection
+          localsync('clearNoCollection', model, options)
           
           if _.isArray resp
             for i in resp
