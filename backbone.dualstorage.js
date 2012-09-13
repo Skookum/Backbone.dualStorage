@@ -2,7 +2,11 @@
 (function() {
   'use strict';
 
-  var S4, dualsync, localsync, onlineSync, parseRemoteResponse, result;
+  var S4, console, dualsync, localsync, onlineSync, parseRemoteResponse, result;
+
+  console = {
+    log: function() {}
+  };
 
   Backbone.Collection.prototype.syncDirty = function(cb) {
     var error, errored, ids, next, queue, store, storeName, success, sync, synced, total,
