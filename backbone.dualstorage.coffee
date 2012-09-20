@@ -84,8 +84,8 @@ Backbone.Collection::pullData = (options={})->
   options.populateCollection = false
   success = options.success
   options.success = =>
-    window.console.log 'fetchedIntoLocalstorage', @storeName or @url
-    @trigger 'fetchedIntoLocalstorage', this
+    console.log 'updateReady', @storeName or @url
+    @trigger 'updateReady', this
     success.apply this, arguments if success
   @fetch options
 
@@ -96,12 +96,24 @@ Backbone.Collection::fetchLocal = (options={})->
   success = options.success
   storeName = @storeName or @url
   doFetch = =>
-    window.console.log 'doFetch', storeName, this
     options.success = =>
       success.apply(this, arguments) if success
     @fetch options
-  @on 'fetchedIntoLocalstorage', _.once -> doFetch()
+  #@on 'fetchedIntoLocalstorage', _.once -> doFetch()
   doFetch()
+
+Backbone.Collection::_localstorageWatchCount = 0
+Backbone.Collection::watchForLocalUpdates = ->
+  @_localstorageWatchCount++
+  @on 'updateReady', (c) =>
+    @fetchLocal()
+  if @_localstorageWatchCount == 1 then @fetchLocal()
+
+Backbone.Collection::unwatchLocalUpdates = ->
+  if @_localstorageWatchCount <= 0 || --@_localstorageWatchCount > 0
+    return
+  @off 'updateReady'
+  @reset []
 
 # Generate four random hex digits.
 S4 = ->

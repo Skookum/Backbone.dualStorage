@@ -149,8 +149,8 @@
     options.populateCollection = false;
     success = options.success;
     options.success = function() {
-      window.console.log('fetchedIntoLocalstorage', _this.storeName || _this.url);
-      _this.trigger('fetchedIntoLocalstorage', _this);
+      console.log('updateReady', _this.storeName || _this.url);
+      _this.trigger('updateReady', _this);
       if (success) {
         return success.apply(_this, arguments);
       }
@@ -168,7 +168,6 @@
     success = options.success;
     storeName = this.storeName || this.url;
     doFetch = function() {
-      window.console.log('doFetch', storeName, _this);
       options.success = function() {
         if (success) {
           return success.apply(_this, arguments);
@@ -176,10 +175,28 @@
       };
       return _this.fetch(options);
     };
-    this.on('fetchedIntoLocalstorage', _.once(function() {
-      return doFetch();
-    }));
     return doFetch();
+  };
+
+  Backbone.Collection.prototype._localstorageWatchCount = 0;
+
+  Backbone.Collection.prototype.watchForLocalUpdates = function() {
+    var _this = this;
+    this._localstorageWatchCount++;
+    this.on('updateReady', function(c) {
+      return _this.fetchLocal();
+    });
+    if (this._localstorageWatchCount === 1) {
+      return this.fetchLocal();
+    }
+  };
+
+  Backbone.Collection.prototype.unwatchLocalUpdates = function() {
+    if (this._localstorageWatchCount <= 0 || --this._localstorageWatchCount > 0) {
+      return;
+    }
+    this.off('updateReady');
+    return this.reset([]);
   };
 
   S4 = function() {
