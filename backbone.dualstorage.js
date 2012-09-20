@@ -2,11 +2,7 @@
 (function() {
   'use strict';
 
-  var S4, console, dualsync, localsync, onlineSync, parseRemoteResponse, result;
-
-  console = {
-    log: function() {}
-  };
+  var S4, dualsync, localsync, onlineSync, parseRemoteResponse, result;
 
   Backbone.Collection.prototype.syncDirty = function(cb) {
     var error, errored, ids, next, queue, store, storeName, success, sync, synced, total,
@@ -183,10 +179,10 @@
   Backbone.Collection.prototype.watchForLocalUpdates = function() {
     var _this = this;
     this._localstorageWatchCount++;
-    this.on('updateReady', function(c) {
-      return _this.fetchLocal();
-    });
     if (this._localstorageWatchCount === 1) {
+      this.on('updateReady', function(c) {
+        return _this.fetchLocal();
+      });
       return this.fetchLocal();
     }
   };
@@ -470,6 +466,9 @@
     error = options.error;
     switch (method) {
       case 'read':
+        if (!populateCollection) {
+          options.add = true;
+        }
         if (localsync('hasDirtyOrDestroyed', model, options)) {
           model.trigger('fetchRequested', model);
           console.log("can't clear", options.storeName, "require sync dirty data first");
@@ -485,7 +484,7 @@
             console.log('got remote', resp, 'putting into', options.storeName);
             resp = parseRemoteResponse(model, resp);
             model.fromLocal = false;
-            if (!options.skipCollection) {
+            if (!(options.skipCollection || !populateCollection)) {
               localsync('clear', model, options);
             }
             localsync('clearNoCollection', model, options);

@@ -1,6 +1,6 @@
 'use strict'
-console =
-  log: ->
+#console =
+#  log: ->
 
 # A simple module to replace `Backbone.sync` with *localStorage*-based
 # persistence. Models are given GUIDS, and saved into a JSON object. Simple
@@ -326,6 +326,9 @@ dualsync = (method, model, options) ->
   
   switch method
     when 'read'
+      # set the "add" flag to true because we're not going to be changing the
+      # collection (i.e. we're adding 0 elements)
+      if !populateCollection then options.add = true
       if localsync('hasDirtyOrDestroyed', model, options)
         model.trigger 'fetchRequested', model
         console.log "can't clear", options.storeName, "require sync dirty data first"
@@ -338,7 +341,7 @@ dualsync = (method, model, options) ->
           resp = parseRemoteResponse(model, resp)
           model.fromLocal = false
           
-          localsync('clear', model, options) unless options.skipCollection
+          localsync('clear', model, options) unless options.skipCollection or !populateCollection
           localsync('clearNoCollection', model, options)
           
           if _.isArray resp
