@@ -105,9 +105,10 @@ Backbone.Collection::fetchLocal = (options={})->
 Backbone.Collection::_localstorageWatchCount = 0
 Backbone.Collection::watchForLocalUpdates = ->
   @_localstorageWatchCount++
-  @on 'updateReady', (c) =>
+  if @_localstorageWatchCount == 1
+    @on 'updateReady', (c) =>
+      @fetchLocal()
     @fetchLocal()
-  if @_localstorageWatchCount == 1 then @fetchLocal()
 
 Backbone.Collection::unwatchLocalUpdates = ->
   if @_localstorageWatchCount <= 0 || --@_localstorageWatchCount > 0
