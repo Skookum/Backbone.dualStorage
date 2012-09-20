@@ -140,6 +140,48 @@
     return _.union(dirty_ids, destroyed_ids);
   };
 
+  Backbone.Collection.prototype.pullData = function(options) {
+    var success,
+      _this = this;
+    if (options == null) {
+      options = {};
+    }
+    options.populateCollection = false;
+    success = options.success;
+    options.success = function() {
+      window.console.log('fetchedIntoLocalstorage', _this.storeName || _this.url);
+      _this.trigger('fetchedIntoLocalstorage', _this);
+      if (success) {
+        return success.apply(_this, arguments);
+      }
+    };
+    return this.fetch(options);
+  };
+
+  Backbone.Collection.prototype.fetchLocal = function(options) {
+    var doFetch, storeName, success,
+      _this = this;
+    if (options == null) {
+      options = {};
+    }
+    options.remote = false;
+    success = options.success;
+    storeName = this.storeName || this.url;
+    doFetch = function() {
+      window.console.log('doFetch', storeName, _this);
+      options.success = function() {
+        if (success) {
+          return success.apply(_this, arguments);
+        }
+      };
+      return _this.fetch(options);
+    };
+    this.on('fetchedIntoLocalstorage', _.once(function() {
+      return doFetch();
+    }));
+    return doFetch();
+  };
+
   S4 = function() {
     return (((1 + Math.random()) * 0x10000) | 0).toString(16).substring(1);
   };
@@ -207,13 +249,15 @@
       if (storeInCollection == null) {
         storeInCollection = true;
       }
+      if (model instanceof Backbone.Model) {
+        model = model.toJSON();
+      }
       console.log('creating', model, 'in', this.name);
       if (!_.isObject(model)) {
         return model;
       }
       if (!model.id) {
         model.id = this.generateId();
-        model.set(model.idAttribute, model.id);
       }
       localStorage.setItem(this.name + this.sep + model.id, JSON.stringify(model));
       if (storeInCollection) {
@@ -389,8 +433,9 @@
   onlineSync = Backbone.sync;
 
   dualsync = function(method, model, options) {
-    var error, local, originalModel, success;
+    var error, local, originalModel, populateCollection, success, _ref;
     console.log('dualsync', method, model, options);
+    populateCollection = (_ref = options.populateCollection) != null ? _ref : true;
     options.storeName = result(model.collection, 'storeName') || result(model, 'storeName') || result(model.collection, 'url') || result(model, 'url');
     if (result(model, 'remote') || result(model.collection, 'remote') || options.local === false) {
       console.log("only doing online sync");
@@ -412,7 +457,11 @@
           model.trigger('fetchRequested', model);
           console.log("can't clear", options.storeName, "require sync dirty data first");
           model.fromLocal = true;
-          return success(localsync(method, model, options));
+          if (populateCollection(success(localsync(method, model, options)))) {
+
+          } else {
+            return success([]);
+          }
         } else {
           options.success = function(resp, status, xhr) {
             var i, _i, _len;
@@ -427,22 +476,24 @@
               for (_i = 0, _len = resp.length; _i < _len; _i++) {
                 i = resp[_i];
                 console.log('trying to store', i);
-                if (model.model) {
-                  i = new model.model(i);
-                } else if (model instanceof Backbone.Model) {
-                  i = new model(i);
-                }
                 localsync('create', i, options);
               }
             } else {
               localsync('create', resp, options);
+            }
+            if (!populateCollection) {
+              resp = [];
             }
             return success(resp, status, xhr);
           };
           options.error = function(resp) {
             console.log('getting local from', options.storeName);
             model.fromLocal = true;
-            return success(localsync(method, model, options));
+            if (!populateCollection) {
+              return success([]);
+            } else {
+              return success(localsync(method, model, options));
+            }
           };
           return onlineSync(method, model, options);
         }

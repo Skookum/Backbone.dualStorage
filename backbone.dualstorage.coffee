@@ -80,6 +80,29 @@ Backbone.Collection::dirtyIds = ->
   destroyed_ids = (store and store.split(',')) or []
   return _.union(dirty_ids, destroyed_ids)
 
+Backbone.Collection::pullData = (options={})->
+  options.populateCollection = false
+  success = options.success
+  options.success = =>
+    window.console.log 'fetchedIntoLocalstorage', @storeName or @url
+    @trigger 'fetchedIntoLocalstorage', this
+    success.apply this, arguments if success
+  @fetch options
+
+# fetch collection from the local store, waiting for the sync to complete first
+# if necessary
+Backbone.Collection::fetchLocal = (options={})->
+  options.remote = false
+  success = options.success
+  storeName = @storeName or @url
+  doFetch = =>
+    window.console.log 'doFetch', storeName, this
+    options.success = =>
+      success.apply(this, arguments) if success
+    @fetch options
+  @on 'fetchedIntoLocalstorage', _.once -> doFetch()
+  doFetch()
+
 # Generate four random hex digits.
 S4 = ->
   (((1 + Math.random()) * 0x10000) | 0).toString(16).substring 1
@@ -137,12 +160,14 @@ class window.Store
   # Add a model, giving it a (hopefully)-unique GUID, if it doesn't already
   # have an id of it's own.
   create: (model, storeInCollection = true) ->
+    if model instanceof Backbone.Model
+      model = model.toJSON()
     console.log 'creating', model, 'in', @name
     if not _.isObject(model) then return model
     #if model.attributes? then model = model.attributes #removed to fix issue 14
     if not model.id
       model.id = @generateId()
-      model.set model.idAttribute, model.id
+      #model.set model.idAttribute, model.id
     localStorage.setItem @name + @sep + model.id, JSON.stringify(model)
     if storeInCollection
       console.log "storing model #{model.id} in collection #{@name}" 
@@ -262,6 +287,7 @@ onlineSync = Backbone.sync
 
 dualsync = (method, model, options) ->
   console.log 'dualsync', method, model, options
+  populateCollection = options.populateCollection ? true
   
   options.storeName = result(model.collection, 'storeName') || result(model, 'storeName') || 
                       result(model.collection, 'url') || result(model, 'url')
@@ -291,7 +317,8 @@ dualsync = (method, model, options) ->
         model.trigger 'fetchRequested', model
         console.log "can't clear", options.storeName, "require sync dirty data first"
         model.fromLocal = true
-        success localsync(method, model, options)
+        if populateCollection success localsync(method, model, options)
+        else success []
       else
         options.success = (resp, status, xhr) ->
           console.log 'got remote', resp, 'putting into', options.storeName
@@ -304,20 +331,21 @@ dualsync = (method, model, options) ->
           if _.isArray resp
             for i in resp
               console.log 'trying to store', i
-              if model.model
-                i = new model.model i
-              else if model instanceof Backbone.Model
-                i = new model i
               localsync('create', i, options)
           else
             localsync('create', resp, options)
           
+          if !populateCollection
+            resp = []
           success(resp, status, xhr)
         
         options.error = (resp) ->
           console.log 'getting local from', options.storeName
           model.fromLocal = true
-          success localsync(method, model, options)
+          if !populateCollection
+            success []
+          else
+            success localsync(method, model, options)
 
         onlineSync(method, model, options)
 
