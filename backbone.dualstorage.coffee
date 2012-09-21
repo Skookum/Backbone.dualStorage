@@ -83,9 +83,9 @@ Backbone.Collection::dirtyIds = ->
 Backbone.Collection::pullData = (options={})->
   options.populateCollection = false
   success = options.success
-  options.success = =>
+  options.success = (collection, resp)=>
     console.log 'updateReady', @storeName or @url
-    @trigger 'updateReady', this
+    @trigger 'updateReady', this, resp
     success.apply this, arguments if success
   @fetch options
 
@@ -225,9 +225,10 @@ class window.Store
       JSON.parse localStorage.getItem(@name + @sep + id)
 
   # Return the array of all models currently in storage.
-  findAll: ->
+  findAll: (storeSuffix)->
     console.log 'findAlling'
-    for id in @records
+    records = if storeSuffix == 'nocollection' then @recordsNoCollection else @records
+    for id in records
       JSON.parse localStorage.getItem(@name + @sep + id)
 
   # Delete a model from `this.data`, returning it.
@@ -250,7 +251,7 @@ localsync = (method, model, options) ->
       if options.onlyIds
         store.findIds(options.onlyIds)
       else
-        if model.id then store.find(model) else store.findAll()
+        if model.id then store.find(model) else store.findAll(options.storeSuffix)
     when 'hasDirtyOrDestroyed'
       store.hasDirtyOrDestroyed()
     when 'clear'
@@ -341,7 +342,7 @@ dualsync = (method, model, options) ->
           resp = parseRemoteResponse(model, resp)
           model.fromLocal = false
           
-          localsync('clear', model, options) unless options.skipCollection or !populateCollection
+          localsync('clear', model, options) unless options.skipCollection
           localsync('clearNoCollection', model, options)
           
           if _.isArray resp

@@ -144,9 +144,9 @@
     }
     options.populateCollection = false;
     success = options.success;
-    options.success = function() {
+    options.success = function(collection, resp) {
       console.log('updateReady', _this.storeName || _this.url);
-      _this.trigger('updateReady', _this);
+      _this.trigger('updateReady', _this, resp);
       if (success) {
         return success.apply(_this, arguments);
       }
@@ -335,13 +335,13 @@
       return _results;
     };
 
-    Store.prototype.findAll = function() {
-      var id, _i, _len, _ref, _results;
+    Store.prototype.findAll = function(storeSuffix) {
+      var id, records, _i, _len, _results;
       console.log('findAlling');
-      _ref = this.records;
+      records = storeSuffix === 'nocollection' ? this.recordsNoCollection : this.records;
       _results = [];
-      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        id = _ref[_i];
+      for (_i = 0, _len = records.length; _i < _len; _i++) {
+        id = records[_i];
         _results.push(JSON.parse(localStorage.getItem(this.name + this.sep + id)));
       }
       return _results;
@@ -373,7 +373,7 @@
             if (model.id) {
               return store.find(model);
             } else {
-              return store.findAll();
+              return store.findAll(options.storeSuffix);
             }
           }
           break;
@@ -484,7 +484,7 @@
             console.log('got remote', resp, 'putting into', options.storeName);
             resp = parseRemoteResponse(model, resp);
             model.fromLocal = false;
-            if (!(options.skipCollection || !populateCollection)) {
+            if (!options.skipCollection) {
               localsync('clear', model, options);
             }
             localsync('clearNoCollection', model, options);
