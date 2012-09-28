@@ -477,8 +477,8 @@
           model.trigger('fetchRequested', model);
           console.log("can't clear", options.storeName, "require sync dirty data first");
           model.fromLocal = true;
-          if (populateCollection(success(localsync(method, model, options)))) {
-
+          if (populateCollection) {
+            return success(localsync(method, model, options));
           } else {
             return success([]);
           }

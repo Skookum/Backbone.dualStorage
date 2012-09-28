@@ -334,8 +334,10 @@ dualsync = (method, model, options) ->
         model.trigger 'fetchRequested', model
         console.log "can't clear", options.storeName, "require sync dirty data first"
         model.fromLocal = true
-        if populateCollection success localsync(method, model, options)
-        else success []
+        if populateCollection 
+          success localsync(method, model, options)
+        else
+          success []
       else
         options.success = (resp, status, xhr) ->
           console.log 'got remote', resp, 'putting into', options.storeName
