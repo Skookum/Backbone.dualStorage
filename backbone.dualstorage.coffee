@@ -275,6 +275,7 @@ localsync = (method, model, options) ->
         else
           store.clean(model, 'destroyed')
   
+  if response instanceof Backbone.Model then response = response.toJSON()
   unless options.ignoreCallbacks
     if response
       options.success response

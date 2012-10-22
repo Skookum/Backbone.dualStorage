@@ -415,6 +415,9 @@
           }
       }
     })();
+    if (response instanceof Backbone.Model) {
+      response = response.toJSON();
+    }
     if (!options.ignoreCallbacks) {
       if (response) {
         options.success(response);
