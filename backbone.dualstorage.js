@@ -453,7 +453,7 @@
   onlineSync = Backbone.sync;
 
   dualsync = function(method, model, options) {
-    var error, local, originalModel, populateCollection, success, _ref;
+    var error, local, originalModel, populateCollection, success, _ref, _ref1;
     console.log('dualsync', method, model, options);
     populateCollection = (_ref = options.populateCollection) != null ? _ref : true;
     options.storeName = result(model.collection, 'storeName') || result(model, 'storeName') || result(model.collection, 'url') || result(model, 'url');
@@ -462,7 +462,9 @@
       return onlineSync(method, model, options);
     }
     local = result(model, 'local') || result(model.collection, 'local');
-    options.dirty = options.remote === false && !local;
+    if ((_ref1 = options.dirty) == null) {
+      options.dirty = options.remote === false && !local;
+    }
     if (options.remote === false || local) {
       options.ignoreCallbacks = false;
       console.log("only syncing locally");

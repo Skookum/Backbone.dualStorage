@@ -314,7 +314,7 @@ dualsync = (method, model, options) ->
   
   # execute only local sync
   local = result(model, 'local') or result(model.collection, 'local')
-  options.dirty = options.remote is false and not local
+  options.dirty ?= options.remote is false and not local
   if options.remote is false or local
     options.ignoreCallbacks = false
     console.log "only syncing locally"
