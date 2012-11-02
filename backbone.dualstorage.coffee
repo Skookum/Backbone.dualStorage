@@ -22,6 +22,7 @@ Backbone.Collection.prototype.syncDirty = (cb)->
     sync ids.shift()
   error = (model)->
     errored.push(model)
+    if _.isFunction(model.onSyncError) then model.onSyncError.apply(model, arguments)
     next()
   success = (model)->
     # if model is still dirty, sync was not successful
@@ -49,6 +50,7 @@ Backbone.Collection.prototype.syncDestroyed = (cb)->
     sync ids.shift()
   error = (model)->
     errored.push(model)
+    if _.isFunction(model.onSyncError) then model.onSyncError.apply(model, arguments)
     next()
   success = (model)->
     # if model is still dirty, sync was not successful
