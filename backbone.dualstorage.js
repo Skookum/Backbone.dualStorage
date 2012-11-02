@@ -29,6 +29,9 @@
     };
     error = function(model) {
       errored.push(model);
+      if (_.isFunction(model.onSyncError)) {
+        model.onSyncError.apply(model, arguments);
+      }
       return next();
     };
     success = function(model) {
@@ -82,6 +85,9 @@
     };
     error = function(model) {
       errored.push(model);
+      if (_.isFunction(model.onSyncError)) {
+        model.onSyncError.apply(model, arguments);
+      }
       return next();
     };
     success = function(model) {
@@ -511,13 +517,17 @@
             }
             return success(resp, status, xhr);
           };
-          options.error = function(resp) {
-            console.log('getting local from', options.storeName);
-            model.fromLocal = true;
-            if (!populateCollection) {
-              return success([]);
+          options.error = function(xhr, status, resp) {
+            if (xhr.status === 0) {
+              console.log('getting local from', options.storeName);
+              model.fromLocal = true;
+              if (!populateCollection) {
+                return success([]);
+              } else {
+                return success(localsync(method, model, options));
+              }
             } else {
-              return success(localsync(method, model, options));
+              return error(xhr, status, resp);
             }
           };
           return onlineSync(method, model, options);
@@ -528,9 +538,13 @@
           localsync(method, resp, options);
           return success(resp, status, xhr);
         };
-        options.error = function(resp) {
-          options.dirty = true;
-          return success(localsync(method, model, options));
+        options.error = function(xhr, status, resp) {
+          if (xhr.status === 0) {
+            options.dirty = true;
+            return success(localsync(method, model, options));
+          } else {
+            return error(xhr, status, resp);
+          }
         };
         return onlineSync(method, model, options);
       case 'update':
@@ -541,9 +555,13 @@
             localsync('create', resp, options);
             return success(resp, status, xhr);
           };
-          options.error = function(resp) {
-            options.dirty = true;
-            return success(localsync(method, originalModel, options));
+          options.error = function(xhr, status, resp) {
+            if (xhr.status === 0) {
+              options.dirty = true;
+              return success(localsync(method, originalModel, options));
+            } else {
+              return error(xhr, status, resp);
+            }
           };
           model.set({
             id: null
@@ -553,9 +571,13 @@
           options.success = function(resp, status, xhr) {
             return success(localsync(method, model, options), 'success');
           };
-          options.error = function(resp) {
-            options.dirty = true;
-            return success(localsync(method, model, options));
+          options.error = function(xhr, status, resp) {
+            if (xhr.status === 0) {
+              options.dirty = true;
+              return success(localsync(method, model, options));
+            } else {
+              return error(xhr, status, resp);
+            }
           };
           return onlineSync(method, model, options);
         }
@@ -568,9 +590,13 @@
             localsync(method, model, options);
             return success(resp, status, xhr);
           };
-          options.error = function(resp) {
-            options.dirty = true;
-            return success(localsync(method, model, options));
+          options.error = function(xhr, status, resp) {
+            if (xhr.status === 0) {
+              options.dirty = true;
+              return success(localsync(method, model, options));
+            } else {
+              return error(xhr, status, resp);
+            }
           };
           return onlineSync(method, model, options);
         }

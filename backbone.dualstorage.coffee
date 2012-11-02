@@ -361,13 +361,18 @@ dualsync = (method, model, options) ->
             resp = []
           success(resp, status, xhr)
         
-        options.error = (resp) ->
-          console.log 'getting local from', options.storeName
-          model.fromLocal = true
-          if !populateCollection
-            success []
+        options.error = (xhr, status, resp) ->
+          # Get from localStorage if the request could not be completed
+          if xhr.status == 0
+            console.log 'getting local from', options.storeName
+            model.fromLocal = true
+            if !populateCollection
+              success []
+            else
+              success localsync(method, model, options)
+          # Server errors call the error callback
           else
-            success localsync(method, model, options)
+            error(xhr, status, resp)
 
         onlineSync(method, model, options)
 
@@ -375,9 +380,14 @@ dualsync = (method, model, options) ->
       options.success = (resp, status, xhr) ->
         localsync(method, resp, options)
         success(resp, status, xhr)
-      options.error = (resp) ->
-        options.dirty = true
-        success localsync(method, model, options)
+      options.error = (xhr, status, resp) ->
+        # call success callback if model was saved to localStorage but request
+        # could not be completed
+        if xhr.status == 0
+          options.dirty = true
+          success(localsync(method, model, options))
+        else
+          error(xhr, status, resp)
       
       onlineSync(method, model, options)
 
@@ -389,18 +399,28 @@ dualsync = (method, model, options) ->
           localsync('delete', originalModel, options)
           localsync('create', resp, options)
           success(resp, status, xhr)
-        options.error = (resp) ->
-          options.dirty = true
-          success localsync(method, originalModel, options)
+        options.error = (xhr, status, resp) ->
+          # call success callback if model was saved to localStorage but request
+          # could not be completed
+          if xhr.status == 0
+            options.dirty = true
+            success(localsync(method, originalModel, options))
+          else
+            error(xhr, status, resp)
         
         model.set id: null
         onlineSync('create', model, options)
       else
         options.success = (resp, status, xhr) ->
           success localsync(method, model, options), 'success'
-        options.error = (resp) ->
-          options.dirty = true
-          success localsync(method, model, options)
+        options.error = (xhr, status, resp) ->
+          # call success callback if model was saved to localStorage but request
+          # could not be completed
+          if xhr.status == 0
+            options.dirty = true
+            success(localsync(method, model, options))
+          else
+            error(xhr, status, resp)
         
         onlineSync(method, model, options)
 
@@ -411,9 +431,14 @@ dualsync = (method, model, options) ->
         options.success = (resp, status, xhr) ->
           localsync(method, model, options)
           success(resp, status, xhr)
-        options.error = (resp) ->
-          options.dirty = true
-          success localsync(method, model, options)
+        options.error = (xhr, status, resp) ->
+          # call success callback if model was saved to localStorage but request
+          # could not be completed
+          if xhr.status == 0
+            options.dirty = true
+            success(localsync(method, model, options))
+          else
+            error(xhr, status, resp)
         
         onlineSync(method, model, options)
     
