@@ -97,12 +97,9 @@ Backbone.Collection::fetchLocal = (options={})->
   options.remote = false
   success = options.success
   storeName = @storeName or @url
-  doFetch = =>
-    options.success = =>
-      success.apply(this, arguments) if success
-    @fetch options
-  #@on 'fetchedIntoLocalstorage', _.once -> doFetch()
-  doFetch()
+  options.success = =>
+    success.apply(this, arguments) if success
+  @fetch options
 
 Backbone.Collection::_localstorageWatchCount = 0
 Backbone.Collection::watchForLocalUpdates = ->

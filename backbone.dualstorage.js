@@ -165,7 +165,7 @@
   };
 
   Backbone.Collection.prototype.fetchLocal = function(options) {
-    var doFetch, storeName, success,
+    var storeName, success,
       _this = this;
     if (options == null) {
       options = {};
@@ -173,15 +173,12 @@
     options.remote = false;
     success = options.success;
     storeName = this.storeName || this.url;
-    doFetch = function() {
-      options.success = function() {
-        if (success) {
-          return success.apply(_this, arguments);
-        }
-      };
-      return _this.fetch(options);
+    options.success = function() {
+      if (success) {
+        return success.apply(_this, arguments);
+      }
     };
-    return doFetch();
+    return this.fetch(options);
   };
 
   Backbone.Collection.prototype._localstorageWatchCount = 0;
