@@ -395,6 +395,8 @@
           model = store.create(model, !skipCollection);
           if (options.dirty) {
             return store.dirty(model);
+          } else {
+            return model;
           }
           break;
         case 'update':

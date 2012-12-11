@@ -260,7 +260,7 @@ localsync = (method, model, options) ->
     when 'create'
       skipCollection = options.skipCollection || false
       model = store.create(model, !skipCollection)
-      store.dirty(model) if options.dirty
+      if options.dirty then store.dirty(model) else model
     when 'update'
       store.update(model)
       if options.dirty then store.dirty(model) else store.clean(model, 'dirty')
