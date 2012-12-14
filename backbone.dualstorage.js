@@ -568,12 +568,13 @@
           return onlineSync('create', model, options);
         } else {
           options.success = function(resp, status, xhr) {
-            return success(localsync(method, model, options), 'success');
+            localsync(method, model, options);
+            return success(resp, status, xhr);
           };
           options.error = function(xhr, status, resp) {
             if (xhr.status === 0) {
               options.dirty = true;
-              return success(localsync(method, model, options));
+              return success(localsync(method, model, options), 'success');
             } else {
               return error(xhr, status, resp);
             }

@@ -409,13 +409,14 @@ dualsync = (method, model, options) ->
         onlineSync('create', model, options)
       else
         options.success = (resp, status, xhr) ->
-          success localsync(method, model, options), 'success'
+          localsync(method, model, options)
+          success resp, status, xhr
         options.error = (xhr, status, resp) ->
           # call success callback if model was saved to localStorage but request
           # could not be completed
           if xhr.status == 0
             options.dirty = true
-            success(localsync(method, model, options))
+            success localsync(method, model, options), 'success'
           else
             error(xhr, status, resp)
         
