@@ -113,6 +113,8 @@ Backbone.Collection::unwatchLocalUpdates = ->
   if @_localstorageWatchCount <= 0 || --@_localstorageWatchCount > 0
     return
   @off 'updateReady'
+  @each (model) ->
+    if _.isFunction model.cleanup then model.cleanup()
   @reset []
 
 # Generate four random hex digits.

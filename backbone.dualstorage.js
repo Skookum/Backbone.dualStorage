@@ -199,6 +199,11 @@
       return;
     }
     this.off('updateReady');
+    this.each(function(model) {
+      if (_.isFunction(model.cleanup)) {
+        return model.cleanup();
+      }
+    });
     return this.reset([]);
   };
 
